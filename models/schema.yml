@@ -1,0 +1,169 @@
+version: 2
+
+models:
+  - name: sep_table_usage
+    description: >
+      Table-level usage aggregation from Starburst query metadata.
+      One row per (catalog, schema, table). Tracks query frequency,
+      user breadth, read/write split, freshness classification, and
+      dbt model enrichment. Used to prioritize tables for AI bot context.
+    meta:
+      owner: <owner_email>
+    columns:
+      - name: catalog_name
+        description: Starburst catalog (e.g. bdc_redshift, bdc_lakehouse)
+      - name: schema_name
+        description: Schema within the catalog
+      - name: table_name
+        description: Table or view name
+      - name: first_accessed
+        description: Earliest query date observed for this table
+      - name: last_accessed
+        description: Most recent query date observed for this table
+      - name: total_query_count
+        description: Total number of queries that touched this table
+      - name: unique_users
+        description: Count of distinct users who queried this table
+      - name: write_count
+        description: Number of queries where this table was the output target
+      - name: read_count
+        description: Number of queries where this table was read from
+      - name: total_bytes_scanned
+        description: Cumulative physical bytes scanned from this table
+      - name: total_rows_scanned
+        description: Cumulative physical rows scanned from this table
+      - name: days_since_last_access
+        description: Days between last_accessed and today
+      - name: usage_status
+        description: "Freshness tier: active (<30d), low_usage (30-90d), unused (90-180d), stale (>180d)"
+      - name: table_exists
+        description: Whether the table currently exists in information_schema
+      - name: removed_at
+        description: Date the table was first detected as missing from information_schema
+      - name: is_dbt_model
+        description: Whether this table is managed by dbt
+      - name: dbt_unique_id
+        description: dbt unique_id (e.g. model.edwh_dbt.my_model)
+      - name: dbt_materialization
+        description: dbt materialization type (table, view, incremental)
+      - name: dbt_owner
+        description: Model owner from dbt meta
+      - name: dbt_tags
+        description: dbt tags array
+      - name: dbt_path
+        description: File path in the dbt project
+      - name: dbt_package
+        description: dbt package name
+
+  - name: sep_table_access_by_user
+    description: >
+      Per-user, per-source table access rollup with HR and Starburst role
+      enrichment. One row per (catalog, schema, table, user, source).
+      Enables team-level usage analysis for AI bot context personalization.
+    meta:
+      owner: <owner_email>
+    columns:
+      - name: catalog_name
+        description: Starburst catalog
+      - name: schema_name
+        description: Schema within the catalog
+      - name: table_name
+        description: Table or view name
+      - name: user_email
+        description: Login email of the user
+      - name: source
+        description: "Query source: trino-cli, dbt, tableau, python, etc."
+      - name: first_accessed
+        description: Earliest access date for this user+table combination
+      - name: last_accessed
+        description: Most recent access date
+      - name: last_accessed_ts
+        description: Most recent access timestamp (for incremental watermark)
+      - name: query_count
+        description: Total queries by this user on this table
+      - name: write_count
+        description: Queries where this user wrote to this table
+      - name: read_count
+        description: Queries where this user read from this table
+      - name: bytes_scanned
+        description: Total bytes scanned by this user from this table
+      - name: rows_scanned
+        description: Total rows scanned by this user from this table
+      - name: user_type
+        description: "Classification: human, service_account, or system"
+      - name: employee_name
+        description: Full name from HR (resolved via email/handle matching)
+      - name: job_title
+        description: Job title from HR
+      - name: cost_center
+        description: Cost center from HR
+      - name: cost_center_hierarchy
+        description: Cost center hierarchy from HR
+      - name: starburst_roles
+        description: Array of Starburst BIAC roles assigned to this user
+
+  - name: sep_query_performance_daily
+    description: >
+      Daily query performance rollup per (user, source, resource group).
+      Tracks latency percentiles, memory usage, queue pressure, and
+      success/failure rates. Helps identify expensive query patterns
+      and capacity constraints.
+    meta:
+      owner: <owner_email>
+    columns:
+      - name: date
+        description: Query date
+      - name: user_email
+        description: Login email
+      - name: source
+        description: Query source
+      - name: resource_group_id
+        description: Starburst resource group
+      - name: query_count
+        description: Total queries
+      - name: successful_count
+        description: Queries that finished successfully
+      - name: failed_count
+        description: Queries that failed
+      - name: sum_wall_ms
+        description: Total wall clock time in milliseconds
+      - name: sum_cpu_ms
+        description: Total CPU time in milliseconds
+      - name: sum_queued_ms
+        description: Total time spent queued in milliseconds
+      - name: sum_bytes_scanned
+        description: Total bytes scanned
+      - name: sum_output_bytes
+        description: Total output bytes
+      - name: sum_rows_scanned
+        description: Total rows scanned
+      - name: p50_wall_ms
+        description: Median wall time (ms)
+      - name: p95_wall_ms
+        description: 95th percentile wall time (ms)
+      - name: p99_wall_ms
+        description: 99th percentile wall time (ms)
+      - name: p50_mem_bytes
+        description: Median peak memory (bytes)
+      - name: p95_mem_bytes
+        description: 95th percentile peak memory (bytes)
+      - name: p99_mem_bytes
+        description: 99th percentile peak memory (bytes)
+      - name: p95_queued_ms
+        description: 95th percentile queue time (ms)
+      - name: queries_queued_over_1s
+        description: Count of queries queued longer than 1 second
+      - name: queries_queued_over_10s
+        description: Count of queries queued longer than 10 seconds
+      - name: user_type
+        description: "Classification: human, service_account, or system"
+      - name: employee_name
+        description: Full name from HR
+      - name: job_title
+        description: Job title from HR
+      - name: cost_center
+        description: Cost center from HR
+      - name: cost_center_hierarchy
+        description: Cost center hierarchy from HR
+      - name: starburst_roles
+        description: Starburst BIAC roles
